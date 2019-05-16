@@ -1,0 +1,9 @@
+from enum import Enum
+
+
+class Errors(Enum):
+    JWT_INVALID = 'JWT_INVALID'
+    JWT_MISSING = 'JWT_MISSING'
+    JWT_EXPIRED = 'JWT_EXPIRED'
+    JSON_MISSING = 'JSON_MISSING'
+    INCONSISTENT_DATA = 'INCONSISTENT_DATA'
