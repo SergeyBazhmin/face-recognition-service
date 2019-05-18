@@ -1,4 +1,4 @@
-import settings
+from server import settings
 import server
 import redis
 import pytest

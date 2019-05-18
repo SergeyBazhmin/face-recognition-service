@@ -1,4 +1,4 @@
-from settings import settings
+from server.settings import settings
 from celery import Celery
 from background.adapters import adapter_registry
 from background.interfaces import Preprocessing

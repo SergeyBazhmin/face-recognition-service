@@ -4,7 +4,7 @@ import server
 from server import app
 from flask_jwt_extended import jwt_required
 from functools import wraps
-from settings import server_settings
+from server.settings import server_settings
 from server.websocket import socket_io
 from constants import SERVER_SLEEP
 from server.enumerates import Errors

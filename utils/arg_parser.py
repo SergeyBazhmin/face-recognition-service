@@ -9,6 +9,13 @@ parser.add_argument('-jwt',
                     type=bool,
                     required=False)
 
+parser.add_argument('-sp',
+                    '--server_port',
+                    help='Server port',
+                    default=5000,
+                    type=int,
+                    required=False)
+
 parser.add_argument('-rh',
                     '--redis_host',
                     help='Redis server host',
