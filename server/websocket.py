@@ -1,8 +1,8 @@
 import psutil
 from flask_socketio import SocketIO
-from server.settings import settings
-from server import app
 from background.celery_app import celery_pool
+from common import settings as s
+from server import app
 
 
 socket_io = SocketIO(app, async_mode='eventlet')
@@ -23,9 +23,9 @@ def response_counter(response):
     return response
 
 
-@socket_io.on('debug')
+@socket_io.on('debug', namespace='/debug')
 def set_debug(debug):
-    settings.debug_recognition = debug
+    s.server_settings.debug_recognition = debug
 
 
 @socket_io.on('poll_data')

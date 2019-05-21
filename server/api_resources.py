@@ -4,9 +4,9 @@ import server
 from server import app
 from flask_jwt_extended import jwt_required
 from functools import wraps
-from server.settings import server_settings
+from common import settings
 from server.websocket import socket_io
-from constants import SERVER_SLEEP
+from common.constants import SERVER_SLEEP
 from server.enumerates import Errors
 import uuid
 import json
@@ -17,7 +17,7 @@ def maybe_jwt(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        return jwt_required(func)(*args, **kwargs) if server_settings.use_jwt else func(*args, **kwargs)
+        return jwt_required(func)(*args, **kwargs) if settings.server_settings.use_jwt else func(*args, **kwargs)
 
     return wrapper
 
@@ -27,13 +27,6 @@ def ping():
     return jsonify({'message': 'pong'})
 
 
-# @app.route('/model', methods=['GET'], endpoint='f2')
-# @maybe_jwt
-# def get_info():
-#     return jsonify({
-#         'model': sever_settings.model_configuration.class_name,
-#     })
-
 @app.route('/workers/<worker_id>', methods=['DELETE'], endpoint='f4')
 @maybe_jwt
 def delete_worker(worker_id):
@@ -41,7 +34,7 @@ def delete_worker(worker_id):
     return jsonify({'id': worker_id})
 
 
-@app.route('/workers/create', methods=['GET'], endpoint='f5')
+@app.route('/workers/create', methods=['POST'], endpoint='f5')
 @maybe_jwt
 def post():
     new_worker_id = str(uuid.uuid4())
@@ -65,13 +58,13 @@ def recognize():
         recognition = server.redis_connection.get(identifier)
         if recognition is not None:
             recognition = json.loads(recognition.decode('utf-8'))
-            if server_settings.debug_recognition:
+            if settings.server_settings.debug_recognition:
                 socket_io.emit('recognition', {
                     'photo': photo_base64,
                     'person': recognition['person'],
                     'distance': recognition['distance']
                 }, namespace='/debug')
-            response['denied'] = True if recognition['person'] == 'Unknown' else False
+            response['person'] = recognition['person']
             server.redis_connection.delete(identifier)
             break
 
@@ -88,8 +81,9 @@ def store():
         return jsonify({'message': Errors.JSON_MISSING.value}), 400
 
     photo_base64 = data['photo']
-    identifier = str(uuid.uuid4())
-    server.redis_connection.rpush('store', json.dumps({'id': identifier, 'photo': photo_base64}))
+    person_id = data['person_id']
+    server.redis_connection.rpush('storage',
+                                  json.dumps({'photo': photo_base64, 'person_id': person_id}))
     return jsonify({'message': 'ok'})
 
 

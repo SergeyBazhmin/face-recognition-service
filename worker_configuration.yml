@@ -1,25 +1,22 @@
 model:
   module: my_model
-  class_name: MyModel
+  class_name: Model
 
 preprocessing:
   module: my_preprocessing
-  class_name: MyPreprocessing
+  class_name: Preprocessing
 
 database:
-  provider: postgresql
-  database: users
-  user: postgres
+  provider: mysql
+  database: embeddings
+  user: root
   password: admin
   host: localhost
-  port: 5432
+  port: 3306
   table_info:
     table_name: embeddings
-    cube_dim: 64
 
 redis:
   host: localhost
   port: 6379
   db: 0
-
-use_jwt: False

@@ -36,7 +36,10 @@ try:
             query = f'select person_id, {pows} as distance from {self.table_name} order by distance asc limit 1'
 
             cursor.execute(query)
-            similar_person, distance = cursor.fetchone()
+            q_obj = cursor.fetchone()
+            if q_obj is None:
+                return -1, 1e9
+            similar_person, distance = q_obj
             if distance > threshold:
                 similar_person = -1
 
@@ -49,7 +52,7 @@ try:
             for idx, column in enumerate(columns):
                 columns[idx] = f'f{idx+1} double'
             col_types = ','.join(columns)
-            table_cmd = f'create table {self.table_name} (id serial primary key, person_id int,{col_types})'
+            table_cmd = f'create table if not exists {self.table_name} (id serial primary key, person_id int,{col_types})'
 
             cursor.execute(f'{table_cmd}')
             self._connection.commit()

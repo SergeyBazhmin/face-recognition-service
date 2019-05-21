@@ -44,13 +44,13 @@ class Adapter:
         con = getattr(self, '_connection')
         cursor = con.cursor()
         table_name = getattr(self, 'table_name')
-        cursor.execute(f'truncate table {table_name}')
+        cursor.execute(f'truncate table if exists {table_name}')
         con.commit()
 
     def drop_table(self):
         con = getattr(self, '_connection')
         cursor = con.cursor()
         table_name = getattr(self, 'table_name')
-        cursor.execute(f'drop table {table_name}')
+        cursor.execute(f'drop table if exists {table_name}')
 
 

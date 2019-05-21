@@ -1,28 +1,52 @@
-from server import settings
-import server
-import redis
 import pytest
+import server
 from server.enumerates import Errors
-from constants import ROOT_DIR
+from common.constants import ROOT_DIR
 import json
+import redis
+from common import settings
 import base64
 
 static_folder = ROOT_DIR / 'tests' / 'static'
 test_image = static_folder / '2_2.jpg'
 
 
+def is_redis_available():
+    try:
+        server.redis_connection.get('random_string')
+    except (redis.exceptions.ConnectionError,
+            redis.exceptions.BusyLoadingError):
+        return False
+    return True
+
+
 @pytest.fixture(scope='module')
-def client():
+def client(request):
     '''Flask testing client'''
     server.app.testing = True
-    server.redis_connection = redis.StrictRedis()
+    server.app.config['JWT_SECRET_KEY'] = 'secret-key'
     test_client = server.app.test_client()
+    if not is_redis_available():
+        pytest.fail('redis server is not available, check your connection')
 
+    response = test_client.post('/workers/create', content_type='application/json', data={})
+    assert response.status_code == 200
+    id = json.loads(response.data)['id']
+
+    def finalizer():
+        settings.server_settings.use_jwt = False
+        response = test_client.delete(f'/workers/{id}')
+        assert response.status_code == 200
+
+    request.addfinalizer(finalizer)
     return test_client
 
 
 @pytest.mark.recognition
 def test_recognition_request(client):
+    if not is_redis_available():
+        pytest.fail('redis server is not available, check your connection')
+
     settings.server_settings.use_jwt = False
 
     with open(test_image, "rb") as image_file:
@@ -33,17 +57,22 @@ def test_recognition_request(client):
 
     json_data = json.loads(response.data)
 
-    assert not json_data['denied']
+    assert json_data['person'] != -1
 
 
 @pytest.mark.recognition
 def test_storage_request(client):
+    if not is_redis_available():
+        pytest.fail('redis server is not available, check your connection')
+
     settings.server_settings.use_jwt = False
 
     with open(test_image, "rb") as image_file:
         image_str = base64.b64encode(image_file.read()).decode('utf-8')
 
-    response = client.post('/image/store', content_type='application/json', data=json.dumps({'photo': image_str}))
+    response = client.post('/image/store',
+                           content_type='application/json',
+                           data=json.dumps({'photo': image_str, 'person_id': 4}))
     assert response.status_code == 200
     json_data = json.loads(response.data)
     assert json_data['message'] == 'ok'
@@ -52,6 +81,7 @@ def test_storage_request(client):
 @pytest.mark.other
 def test_json_missing(client):
     settings.server_settings.use_jwt = False
+
     response = client.post('/image/store')
     a = json.loads(response.data)
     assert a['message'] == Errors.JSON_MISSING.value
@@ -59,6 +89,7 @@ def test_json_missing(client):
 
 @pytest.mark.other
 def test_jwt(client):
+
     settings.server_settings.use_jwt = True
 
     response = client.post('/image/store')
@@ -70,57 +101,3 @@ def test_jwt(client):
     response = client.post('/image/store', headers=headers)
     data = json.loads(response.data)
     assert data['message'] == Errors.JWT_INVALID.value
-
-
-# @pytest.mark.celery
-# def test_worker_creation(client):
-#     utils.settings.server_settings.use_jwt = False
-
-
-#
-# @pytest.mark.celery
-# def test_worker_creation(client):
-#     settings.use_oauth = False
-#
-#     pool_inspect = celery_pool.control.inspect().active()
-#     pool = list(pool_inspect)[0]
-#     n_workers_before = len(list(map(lambda w: w['id'], pool_inspect[pool])))
-#
-#     response = client.get('/workers/create', content_type='application/json')
-#     json_data = json.loads(response.data)
-#     assert 'id'in json_data
-#
-#     worker_id = json_data['id']
-#
-#     pool_inspect = celery_pool.control.inspect().active()
-#     pool = list(pool_inspect)[0]
-#     n_workers_after = len(list(map(lambda w: w['id'], pool_inspect[pool])))
-#
-#     assert n_workers_after - n_workers_before == 1
-#
-#     p = Path("./static/image_1.jpg")
-#     with open(p, "rb") as image_file:
-#         image_str = base64.b64encode(image_file.read()).decode('utf-8')
-#
-#     response = client.post('/image/recognize', data=dict(photo=image_str))
-#     json_data = json.loads(response.data)
-#
-#     assert 'denied' in json_data
-#     assert not json_data['denied']
-#
-#     response = client.delete('/workers/{}'.format(worker_id))
-#     json_data = json.loads(response.data)
-#
-#     assert 'id' in json_data
-#     assert json_data['id'] == worker_id
-
-#
-# def test_ping(client):
-#     response = client.get('/ping', content_type='application/json')
-#     json_response = json.loads(response.data)
-#     assert json_response['message'] == 'pong'
-
-
-
-
-

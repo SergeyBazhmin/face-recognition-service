@@ -1,9 +1,9 @@
-from server.settings import settings
+from common.settings import celery_settings
 from celery import Celery
 from background.adapters import adapter_registry
 from background.interfaces import Preprocessing
 from importlib import import_module
-from constants import WORKER_SLEEP
+from common.constants import WORKER_SLEEP
 from background.adapters.db_enumerates import Database
 from PIL import Image
 import numpy as np
@@ -15,9 +15,9 @@ import json
 
 
 celery_pool = Celery('tasks', broker='redis://{}:{}/{}'.format(
-    settings.redis_configuration.host,
-    settings.redis_configuration.port,
-    settings.redis_configuration.db
+    celery_settings.redis_configuration.host,
+    celery_settings.redis_configuration.port,
+    celery_settings.redis_configuration.db
 ))
 
 priority_list = ['recognition', 'storage']
@@ -33,20 +33,20 @@ def base64_decode_image(img):
 
 
 def connect_to_databases():
-    db_embeddings = adapter_registry[Database(settings.database_configuration.provider)](
-        **settings.database_configuration.table_info
+    db_embeddings = adapter_registry[Database(celery_settings.database_configuration.provider)](
+        **celery_settings.database_configuration.table_info
     )
     db_embeddings.connect(
-        database=settings.database_configuration.database,
-        user=settings.database_configuration.user,
-        password=settings.database_configuration.password,
-        host=settings.database_configuration.host,
-        port=int(settings.database_configuration.port)
+        database=celery_settings.database_configuration.database,
+        user=celery_settings.database_configuration.user,
+        password=celery_settings.database_configuration.password,
+        host=celery_settings.database_configuration.host,
+        port=int(celery_settings.database_configuration.port)
     )
     redis_connection = redis.StrictRedis(
-        host=settings.redis_configuration.host,
-        port=int(settings.redis_configuration.port),
-        db=int(settings.redis_configuration.db)
+        host=celery_settings.redis_configuration.host,
+        port=int(celery_settings.redis_configuration.port),
+        db=int(celery_settings.redis_configuration.db)
     )
     return db_embeddings, redis_connection
 
@@ -54,12 +54,12 @@ def connect_to_databases():
 def get_image_processing_instances():
     prep_cls = Preprocessing
 
-    if settings.preprocessing_configuration is not None:
-        prep_module = import_module(settings.preprocessing_configuration.module)
-        prep_cls = getattr(prep_module, settings.preprocessing_configuration.class_name)
+    if celery_settings.preprocessing_configuration is not None:
+        prep_module = import_module(celery_settings.preprocessing_configuration.module)
+        prep_cls = getattr(prep_module, celery_settings.preprocessing_configuration.class_name)
 
-    model_module = import_module(settings.model_configuration.module)
-    model_cls = getattr(model_module, settings.model_configuration.class_name)
+    model_module = import_module(celery_settings.model_configuration.module)
+    model_cls = getattr(model_module, celery_settings.model_configuration.class_name)
 
     return prep_cls(), model_cls()
 
@@ -89,10 +89,10 @@ def run_worker():
             if task == 'recognition':
                 embedding = model_instance(np_img)
                 who, distance = db_connection.select_similar(embedding)
-                print(who)
-                redis_connection.set(payload['id'], json.dumps({'person': who, 'distance': round(distance, 2)}))
+                print(who, distance)
+                redis_connection.set(payload['id'], json.dumps({'person': who, 'distance': distance}))
             else:
                 embedding = model_instance(np_img)
-                db_connection.add_embedding(embedding, payload['id'])
+                db_connection.add_embedding(embedding, payload['person_id'])
 
         time.sleep(WORKER_SLEEP)

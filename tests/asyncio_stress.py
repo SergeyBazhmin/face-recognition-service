@@ -1,6 +1,6 @@
 import asyncio
 from aiohttp import ClientSession
-from constants import ROOT_DIR
+from common.constants import ROOT_DIR
 import random
 import base64
 import time
@@ -11,7 +11,7 @@ loop = asyncio.get_event_loop()
 url = 'http://localhost:5000/ping'
 counter = 0
 time_for_request = []
-n = 50
+n = 80
 
 static_folder = ROOT_DIR / 'static'
 test_image = static_folder / '2_2.jpg'

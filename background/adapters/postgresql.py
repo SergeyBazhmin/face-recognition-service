@@ -57,7 +57,10 @@ try:
 
             cursor = self._connection.cursor()
             cursor.execute(query)
-            similar_person, distance = cursor.fetchone()
+            q_obj = cursor.fetchone()
+            if q_obj is None:
+                return -1, 1e9
+            similar_person, distance = q_obj
             if distance > threshold:
                 similar_person = -1
 
@@ -66,7 +69,7 @@ try:
         def create_table(self, n_cols: int):
             cubes = [f'cube_{id+1} cube' for id in range(n_cols)]
             col_types = ','.join(cubes)
-            table_cmd = f'create table {self.table_name} (id serial primary key, person_id int, {col_types})'
+            table_cmd = f'create table if not exists {self.table_name} (id serial primary key, person_id int, {col_types})'
             cursor = self._connection.cursor()
             cursor.execute(table_cmd)
             self._connection.commit()

@@ -1,5 +1,5 @@
 import yaml
-from constants import ROOT_DIR
+from common.constants import ROOT_DIR
 from utils.initializer import initializer
 
 
@@ -42,7 +42,7 @@ class PreprocessingConfiguration(Config):
 class CelerySettings:
     def __init__(self):
         try:
-            yml = ROOT_DIR / 'configuration.yml'
+            yml = ROOT_DIR / 'worker_configuration.yml'
             with open(yml) as config_file:
                 configs = yaml.load(config_file)
         except FileNotFoundError as ex:
@@ -59,10 +59,16 @@ class CelerySettings:
 
 class ServerSettings:
     def __init__(self):
-        self.redis_configuration = None
-        self.use_jwt = False
+        try:
+            yml = ROOT_DIR / 'worker_configuration.yml'
+            with open(yml) as config_file:
+                self.redis_configuration = RedisConfiguration.from_dict(yaml.load(config_file)['redis'])
+        except FileNotFoundError as ex:
+            print(ex)
+            exit(-1)
+        self.use_jwt = None
         self.debug_recognition = False
 
 
-settings = CelerySettings()
+celery_settings = CelerySettings()
 server_settings = ServerSettings()
